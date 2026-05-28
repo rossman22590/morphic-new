@@ -1,3 +1,5 @@
+# Keep this Dockerfile syntax-directive free. Some deployment builders reject
+# external Dockerfile frontends such as "# syntax=docker.io/docker/dockerfile:1".
 # Build stage - Use Node for Next.js 16 compatibility (Bun lacks worker_threads support on arm64)
 FROM node:22-slim AS builder
 
