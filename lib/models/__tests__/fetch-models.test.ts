@@ -55,7 +55,7 @@ describe('fetch-models', () => {
     expect(models.map(model => model.id)).toEqual(['gpt-5-mini', 'o3-mini'])
   })
 
-  it('normalizes OpenRouter tool-capable chat models', async () => {
+  it('normalizes configured top OpenRouter tool-capable chat models', async () => {
     mockIsProviderEnabled.mockImplementation(
       providerId => providerId === 'openrouter'
     )
@@ -67,11 +67,38 @@ describe('fetch-models', () => {
       json: async () => ({
         data: [
           {
+            id: 'openai/gpt-5.5',
+            name: 'OpenAI: GPT-5.5',
+            supported_parameters: ['tools'],
+            architecture: {
+              input_modalities: ['text', 'image'],
+              output_modalities: ['text']
+            }
+          },
+          {
             id: 'openai/gpt-5.4-mini',
             name: 'GPT-5.4 Mini',
             supported_parameters: ['tools'],
             architecture: {
-              input_modalities: ['text', 'image'],
+              input_modalities: ['text'],
+              output_modalities: ['text']
+            }
+          },
+          {
+            id: 'google/gemini-3.5-flash',
+            name: 'Google: Gemini 3.5 Flash',
+            supported_parameters: ['tools'],
+            architecture: {
+              input_modalities: ['text'],
+              output_modalities: ['text']
+            }
+          },
+          {
+            id: 'anthropic/claude-sonnet-4.6',
+            name: 'Anthropic: Claude Sonnet 4.6',
+            supported_parameters: ['tools'],
+            architecture: {
+              input_modalities: ['text'],
               output_modalities: ['text']
             }
           },
@@ -92,8 +119,20 @@ describe('fetch-models', () => {
     const models = await fetchModels.fetchOpenRouterModels()
     expect(models).toEqual([
       {
-        id: 'openai/gpt-5.4-mini',
-        name: 'GPT-5.4 Mini',
+        id: 'anthropic/claude-sonnet-4.6',
+        name: 'Anthropic: Claude Sonnet 4.6',
+        provider: 'OpenRouter',
+        providerId: 'openrouter'
+      },
+      {
+        id: 'google/gemini-3.5-flash',
+        name: 'Google: Gemini 3.5 Flash',
+        provider: 'OpenRouter',
+        providerId: 'openrouter'
+      },
+      {
+        id: 'openai/gpt-5.5',
+        name: 'OpenAI: GPT-5.5',
         provider: 'OpenRouter',
         providerId: 'openrouter'
       }

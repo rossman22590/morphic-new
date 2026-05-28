@@ -2,7 +2,9 @@ import { createGateway } from '@ai-sdk/gateway'
 
 import {
   getOpenRouterBaseUrl,
-  getOpenRouterHeaders
+  getOpenRouterHeaders,
+  getTopOpenRouterModelRank,
+  isTopOpenRouterModel
 } from '@/lib/config/openrouter'
 import { Model } from '@/lib/types/models'
 import { isProviderEnabled } from '@/lib/utils/registry'
@@ -57,6 +59,12 @@ let modelsCache:
 
 function sortModels(models: Model[]): Model[] {
   return [...models].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function sortOpenRouterModels(models: Model[]): Model[] {
+  return [...models].sort(
+    (a, b) => getTopOpenRouterModelRank(a.id) - getTopOpenRouterModelRank(b.id)
+  )
 }
 
 function dedupeModels(models: Model[]): Model[] {
@@ -175,6 +183,10 @@ function passesOpenRouterFilters(item: Record<string, any>): boolean {
     return false
   }
 
+  if (!isTopOpenRouterModel(id)) {
+    return false
+  }
+
   if (
     OPENROUTER_EXCLUDED_KEYWORDS.some(keyword =>
       id.toLowerCase().includes(keyword)
@@ -218,7 +230,7 @@ export async function fetchOpenRouterModels(): Promise<Model[]> {
     })
 
     const data = Array.isArray(json?.data) ? json.data : []
-    return sortModels(
+    return sortOpenRouterModels(
       dedupeModels(
         data
           .filter(
@@ -499,7 +511,9 @@ export async function fetchAvailableModels(options?: {
   const normalized = Object.fromEntries(
     Object.entries(grouped).map(([provider, models]) => [
       provider,
-      sortModels(models)
+      provider === 'OpenRouter'
+        ? sortOpenRouterModels(models)
+        : sortModels(models)
     ])
   )
 

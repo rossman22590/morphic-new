@@ -25,8 +25,7 @@ const fontSans = FontSans({
 })
 
 const title = 'AI Search'
-const description =
-  'A AI-powered answer engine with a generative UI.'
+const description = 'A AI-powered answer engine with a generative UI.'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://myapps.ai'),
@@ -57,10 +56,11 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   let user = null
+  const authEnabled = process.env.ENABLE_AUTH !== 'false'
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (supabaseUrl && supabaseAnonKey) {
+  if (authEnabled && supabaseUrl && supabaseAnonKey) {
     const supabase = await createClient()
     const {
       data: { user: supabaseUser }
@@ -89,7 +89,7 @@ export default async function RootLayout({
               {userId && <AppSidebar />}
               <KeyboardShortcutHandler />
               <div className="flex flex-col flex-1 min-w-0">
-                <Header user={user} />
+                <Header user={user} authEnabled={authEnabled} />
                 <main className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
                   <ArtifactRoot>{children}</ArtifactRoot>
                 </main>

@@ -29,6 +29,10 @@ function modelKey(model: Model): string {
   return `${model.providerId}:${model.id}`
 }
 
+function providerHeading(provider: string): string {
+  return provider === 'OpenRouter' ? 'Models' : provider
+}
+
 const PROVIDER_LOGO_BY_ID: Record<string, string> = {
   openai: '/providers/logos/openai.svg',
   anthropic: '/providers/logos/anthropic.svg',
@@ -138,7 +142,7 @@ export function ModelSelectorClient({ data }: ModelSelectorClientProps) {
           <CommandList>
             <CommandEmpty>No model found.</CommandEmpty>
             {providerEntries.map(([provider, models]) => (
-              <CommandGroup key={provider} heading={provider}>
+              <CommandGroup key={provider} heading={providerHeading(provider)}>
                 {models.map(model => {
                   const value = modelKey(model)
                   const isSelected = selectedModelKey === value

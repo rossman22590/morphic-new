@@ -2,9 +2,9 @@ import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 
+import { getPostgresSslConfig } from './postgres-ssl'
 import * as relations from './relations'
 import * as schema from './schema'
-import { getPostgresSslConfig } from './postgres-ssl'
 
 // For server-side usage only
 // Use restricted user for application if available, otherwise fall back to regular user

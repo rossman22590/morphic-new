@@ -7,7 +7,7 @@
  * `RUN_LLM_E2E=1` environment variable. CI runs without the flag and the
  * test is skipped. To run locally:
  *
- *   RUN_LLM_E2E=1 OPENAI_API_KEY=sk-... bun run test llm-image-output.e2e
+ *   RUN_LLM_E2E=1 OPENROUTER_API_KEY=sk-... bun run test llm-image-output.e2e
  */
 import { generateText, stepCountIs, tool } from 'ai'
 import { describe, expect, test } from 'vitest'
@@ -19,7 +19,8 @@ import { getModel } from '@/lib/utils/registry'
 import { parseSpecBlock } from '../parse-spec-block'
 
 const RUN = process.env.RUN_LLM_E2E === '1'
-const MODEL = process.env.LLM_E2E_MODEL || 'openrouter:openai/gpt-5.4-mini'
+const MODEL =
+  process.env.LLM_E2E_MODEL || 'openrouter:anthropic/claude-sonnet-4.6'
 
 const FIXTURE_IMAGES = [
   {

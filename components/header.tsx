@@ -17,10 +17,11 @@ import GuestMenu from './guest-menu' // Import the new GuestMenu component
 import UserMenu from './user-menu'
 
 interface HeaderProps {
+  authEnabled: boolean
   user: User | null
 }
 
-export const Header: React.FC<HeaderProps> = ({ user }) => {
+export const Header: React.FC<HeaderProps> = ({ authEnabled, user }) => {
   const { open } = useSidebar()
   const pathname = usePathname()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
@@ -48,7 +49,11 @@ export const Header: React.FC<HeaderProps> = ({ user }) => {
               Feedback
             </Button>
           )}
-          {user ? <UserMenu user={user} /> : <GuestMenu />}
+          {authEnabled && user ? (
+            <UserMenu user={user} />
+          ) : (
+            <GuestMenu showAuthActions={authEnabled} />
+          )}
         </div>
       </header>
 
