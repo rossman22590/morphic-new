@@ -1,5 +1,9 @@
 import { createGateway } from '@ai-sdk/gateway'
 
+import {
+  getOpenRouterBaseUrl,
+  getOpenRouterHeaders
+} from '@/lib/config/openrouter'
 import { Model } from '@/lib/types/models'
 import { isProviderEnabled } from '@/lib/utils/registry'
 
@@ -35,6 +39,14 @@ const ANTHROPIC_ALLOWED_PREFIXES = [
 ]
 const GOOGLE_ALLOWED_PREFIXES = ['gemini-2.5', 'gemini-3']
 const GOOGLE_EXCLUDED_KEYWORDS = ['image', 'live', 'native-audio', 'embedding']
+const OPENROUTER_EXCLUDED_KEYWORDS = [
+  'embedding',
+  'embed',
+  'rerank',
+  'whisper',
+  'tts',
+  'moderation'
+]
 
 let modelsCache:
   | {
@@ -147,6 +159,41 @@ function passesGatewayFilters(id: string): boolean {
   }
 }
 
+function includesTextModality(modalities: unknown): boolean {
+  return Array.isArray(modalities) ? modalities.includes('text') : true
+}
+
+function supportsTools(supportedParameters: unknown): boolean {
+  return Array.isArray(supportedParameters)
+    ? supportedParameters.includes('tools')
+    : false
+}
+
+function passesOpenRouterFilters(item: Record<string, any>): boolean {
+  const id = String(item?.id ?? '')
+  if (!id) {
+    return false
+  }
+
+  if (
+    OPENROUTER_EXCLUDED_KEYWORDS.some(keyword =>
+      id.toLowerCase().includes(keyword)
+    )
+  ) {
+    return false
+  }
+
+  if (!supportsTools(item?.supported_parameters)) {
+    return false
+  }
+
+  const architecture = item?.architecture
+  return (
+    includesTextModality(architecture?.input_modalities) &&
+    includesTextModality(architecture?.output_modalities)
+  )
+}
+
 async function fetchJson(
   url: string,
   headers: HeadersInit
@@ -156,6 +203,44 @@ async function fetchJson(
     throw new Error(`HTTP ${response.status}: ${response.statusText}`)
   }
   return (await response.json()) as Record<string, any>
+}
+
+export async function fetchOpenRouterModels(): Promise<Model[]> {
+  if (!isProviderEnabled('openrouter')) {
+    return []
+  }
+
+  try {
+    const baseUrl = getOpenRouterBaseUrl().replace(/\/$/, '')
+    const json = await fetchJson(`${baseUrl}/models`, {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      ...getOpenRouterHeaders()
+    })
+
+    const data = Array.isArray(json?.data) ? json.data : []
+    return sortModels(
+      dedupeModels(
+        data
+          .filter(
+            (item): item is Record<string, any> =>
+              item !== null && typeof item === 'object'
+          )
+          .filter(passesOpenRouterFilters)
+          .map(item => {
+            const id = String(item?.id ?? '')
+            return {
+              id,
+              name: String(item?.name ?? id),
+              provider: 'OpenRouter',
+              providerId: 'openrouter'
+            } satisfies Model
+          })
+      )
+    )
+  } catch (error) {
+    console.warn('[ModelFetch] Failed to fetch OpenRouter models:', error)
+    return []
+  }
 }
 
 export async function fetchOpenAIModels(): Promise<Model[]> {
@@ -389,16 +474,25 @@ export async function fetchAvailableModels(options?: {
     return modelsCache.value
   }
 
-  const [openai, anthropic, google, ollama, gateway] = await Promise.all([
-    fetchOpenAIModels(),
-    fetchAnthropicModels(),
-    fetchGoogleModels(),
-    fetchOllamaModels(),
-    fetchGatewayModels()
-  ])
+  const [openrouter, openai, anthropic, google, ollama, gateway] =
+    await Promise.all([
+      fetchOpenRouterModels(),
+      fetchOpenAIModels(),
+      fetchAnthropicModels(),
+      fetchGoogleModels(),
+      fetchOllamaModels(),
+      fetchGatewayModels()
+    ])
 
   const grouped = groupByProvider(
-    dedupeModels([...openai, ...anthropic, ...google, ...ollama, ...gateway])
+    dedupeModels([
+      ...openrouter,
+      ...openai,
+      ...anthropic,
+      ...google,
+      ...ollama,
+      ...gateway
+    ])
   )
 
   // Keep stable ordering for each provider list.

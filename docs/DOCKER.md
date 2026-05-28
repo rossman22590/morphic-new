@@ -16,13 +16,13 @@ docker pull ghcr.io/miurla/morphic:latest
 cp .env.local.example .env.local
 ```
 
-Edit `.env.local` and set at least one AI provider API key:
+Edit `.env.local` and set your OpenRouter API key:
 
 ```bash
-OPENAI_API_KEY=your_openai_key
+OPENROUTER_API_KEY=your_openrouter_key
 ```
 
-Other supported providers: Anthropic (`ANTHROPIC_API_KEY`), Google (`GOOGLE_GENERATIVE_AI_API_KEY`), Ollama (`OLLAMA_BASE_URL`), Vercel AI Gateway (`AI_GATEWAY_API_KEY`).
+All LLM usage is routed through OpenRouter.
 
 3. Start all services:
 
@@ -49,7 +49,7 @@ docker compose up -d --build
 
 ## Model Selection
 
-In Docker mode, Morphic dynamically detects available AI providers based on your API keys and displays a model selector in the UI. No configuration files to edit — just set your API key and pick your model.
+In Docker mode, Morphic dynamically detects OpenRouter chat models with tool support and displays them in the model selector. No configuration files to edit — just set your OpenRouter API key and pick your model.
 
 ## Built-in Defaults
 

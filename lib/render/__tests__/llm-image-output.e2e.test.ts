@@ -19,7 +19,7 @@ import { getModel } from '@/lib/utils/registry'
 import { parseSpecBlock } from '../parse-spec-block'
 
 const RUN = process.env.RUN_LLM_E2E === '1'
-const MODEL = process.env.LLM_E2E_MODEL || 'openai:gpt-4o-mini'
+const MODEL = process.env.LLM_E2E_MODEL || 'openrouter:openai/gpt-5.4-mini'
 
 const FIXTURE_IMAGES = [
   {

@@ -2,30 +2,16 @@
   "version": 2,
   "models": {
     "quick": {
-      "id": "gemini-3.1-flash-lite-preview",
+      "id": "google/gemini-3.1-flash-lite-preview",
       "name": "Gemini 3.1 Flash Lite Preview",
-      "provider": "Google",
-      "providerId": "google",
-      "providerOptions": {
-        "google": {
-          "thinkingConfig": {
-            "includeThoughts": true
-          }
-        }
-      }
+      "provider": "OpenRouter",
+      "providerId": "openrouter"
     },
     "adaptive": {
-      "id": "gemini-3-flash-preview",
+      "id": "google/gemini-3-flash-preview",
       "name": "Gemini 3 Flash Preview",
-      "provider": "Google",
-      "providerId": "google",
-      "providerOptions": {
-        "google": {
-          "thinkingConfig": {
-            "includeThoughts": true
-          }
-        }
-      }
+      "provider": "OpenRouter",
+      "providerId": "openrouter"
     }
   }
 }

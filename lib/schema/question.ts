@@ -35,14 +35,38 @@ export const strictQuestionSchema = z.object({
   inputPlaceholder: z.string().describe('Placeholder text for input field')
 })
 
+function parseFullModel(fullModel: string): {
+  provider: string
+  modelName: string
+} {
+  const separatorIndex = fullModel.indexOf(':')
+  if (separatorIndex < 0) {
+    return { provider: '', modelName: fullModel }
+  }
+
+  return {
+    provider: fullModel.slice(0, separatorIndex),
+    modelName: fullModel.slice(separatorIndex + 1)
+  }
+}
+
+function isOpenAIReasoningModel(provider: string, modelName: string): boolean {
+  if (provider === 'openai' || provider === 'azure') {
+    return modelName.startsWith('o')
+  }
+
+  return provider === 'openrouter' && modelName.startsWith('openai/o')
+}
+
 /**
  * Returns the appropriate question schema based on the full model name.
- * Uses the strict schema for OpenAI models starting with 'o'.
+ * Uses the strict schema for OpenAI reasoning models starting with 'o'.
  */
 export function getQuestionSchemaForModel(fullModel: string) {
-  const [provider, modelName] = fullModel?.split(':') ?? []
+  const { provider, modelName } = parseFullModel(fullModel)
   const useStrictSchema =
-    (provider === 'openai' || provider === 'azure') &&
-    modelName?.startsWith('o')
+    Boolean(provider) &&
+    Boolean(modelName) &&
+    isOpenAIReasoningModel(provider, modelName)
   return useStrictSchema ? strictQuestionSchema : questionSchema
 }

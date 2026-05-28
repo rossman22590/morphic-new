@@ -14,6 +14,7 @@ import { isProviderEnabled } from '@/lib/utils/registry'
 
 const MODE_FALLBACK_ORDER: SearchMode[] = ['quick', 'adaptive']
 const PROVIDER_LABELS: Record<string, string> = {
+  openrouter: 'OpenRouter',
   openai: 'OpenAI',
   anthropic: 'Anthropic',
   google: 'Google',

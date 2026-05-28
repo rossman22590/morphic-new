@@ -367,19 +367,19 @@ Options:
 Examples:
   # Simple test
   bun scripts/chat-cli.ts -m "What is the weather like?"
-  
+
   # Without search mode
   bun scripts/chat-cli.ts -m "Tell me a joke" --no-search
-  
+
   # Continue existing chat
   bun scripts/chat-cli.ts -c "chat_123" -m "Tell me more"
-  
+
   # Regenerate assistant message
   bun scripts/chat-cli.ts -c "chat_123" -t regenerate --message-id "msg_123"
-  
+
   # Edit user message and regenerate
   bun scripts/chat-cli.ts -c "chat_123" -t regenerate --message-id "msg_123" -m "New message"
-  
+
 Note: Without authentication, you may get "User not authenticated" errors.
 
 Authentication:

@@ -23,7 +23,7 @@ An AI-powered search engine with a generative UI.
 
 - AI-powered search with GenerativeUI
 - Search modes: Quick and Adaptive
-- Model selector with dynamic provider detection (OpenAI, Anthropic, Google, Ollama, Vercel AI Gateway)
+- Model selector with dynamic OpenRouter model detection
 - Multiple search providers (Tavily, SearXNG, Brave, Exa)
 - Chat history stored in PostgreSQL
 - Share search results with unique URLs
@@ -52,13 +52,13 @@ cd morphic
 cp .env.local.example .env.local
 ```
 
-2. Edit `.env.local` and set at least one AI provider API key:
+2. Edit `.env.local` and set your OpenRouter API key:
 
 ```bash
-OPENAI_API_KEY=your_openai_key
+OPENROUTER_API_KEY=your_openrouter_key
 ```
 
-See [supported providers](./docs/CONFIGURATION.md#supported-providers) for other options (Anthropic, Google, Ollama, Vercel AI Gateway).
+All LLM usage is routed through OpenRouter.
 
 3. Start all services:
 
@@ -91,7 +91,7 @@ cp .env.local.example .env.local
 Edit `.env.local` and set your API keys:
 
 ```bash
-OPENAI_API_KEY=your_openai_key
+OPENROUTER_API_KEY=your_openrouter_key
 TAVILY_API_KEY=your_tavily_key
 ```
 
@@ -109,7 +109,7 @@ Visit http://localhost:3000.
 
 ### Vercel
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmiurla%2Fmorphic&env=OPENAI_API_KEY,TAVILY_API_KEY,ENABLE_AUTH)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmiurla%2Fmorphic&env=OPENROUTER_API_KEY,TAVILY_API_KEY,ENABLE_AUTH)
 
 ## Contributing
 

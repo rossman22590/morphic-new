@@ -55,6 +55,51 @@ describe('fetch-models', () => {
     expect(models.map(model => model.id)).toEqual(['gpt-5-mini', 'o3-mini'])
   })
 
+  it('normalizes OpenRouter tool-capable chat models', async () => {
+    mockIsProviderEnabled.mockImplementation(
+      providerId => providerId === 'openrouter'
+    )
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ({
+        data: [
+          {
+            id: 'openai/gpt-5.4-mini',
+            name: 'GPT-5.4 Mini',
+            supported_parameters: ['tools'],
+            architecture: {
+              input_modalities: ['text', 'image'],
+              output_modalities: ['text']
+            }
+          },
+          {
+            id: 'openai/text-embedding-3-small',
+            name: 'Embedding',
+            supported_parameters: [],
+            architecture: {
+              input_modalities: ['text'],
+              output_modalities: ['text']
+            }
+          }
+        ]
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const models = await fetchModels.fetchOpenRouterModels()
+    expect(models).toEqual([
+      {
+        id: 'openai/gpt-5.4-mini',
+        name: 'GPT-5.4 Mini',
+        provider: 'OpenRouter',
+        providerId: 'openrouter'
+      }
+    ])
+  })
+
   it('groups models by provider and caches results', async () => {
     mockIsProviderEnabled.mockImplementation(
       providerId => providerId === 'openai' || providerId === 'anthropic'

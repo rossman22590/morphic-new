@@ -41,49 +41,28 @@ This command applies all migrations from the `drizzle/` directory. Docker runs m
 
 ### Model Selection
 
-Morphic dynamically detects available AI providers based on your API keys and displays a model selector in the UI. Set at least one provider API key to get started.
+Morphic routes all LLM usage through OpenRouter and displays OpenRouter chat models with tool support in the model selector. Set `OPENROUTER_API_KEY` to get started.
 
 In **Local/Docker** mode, the selected model is persisted in a cookie and used for all chat interactions including related question generation.
 
 In **Cloud** mode (`MORPHIC_CLOUD_DEPLOYMENT=true`), models are fixed by `config/models/cloud.json` and the model selector is not shown.
 
-### Supported Providers
+### OpenRouter
 
-#### OpenAI
-
-```bash
-OPENAI_API_KEY=[YOUR_API_KEY]
-```
-
-#### Anthropic
+Get an API key from [OpenRouter](https://openrouter.ai/keys):
 
 ```bash
-ANTHROPIC_API_KEY=[YOUR_API_KEY]
+OPENROUTER_API_KEY=[YOUR_API_KEY]
 ```
 
-#### Google Gemini
+Optional attribution headers:
 
 ```bash
-GOOGLE_GENERATIVE_AI_API_KEY=[YOUR_API_KEY]
+OPENROUTER_APP_NAME=AI Search
+OPENROUTER_HTTP_REFERER=http://localhost:3000
 ```
 
-#### Vercel AI Gateway
-
-[Vercel AI Gateway](https://vercel.com/docs/ai-gateway) provides access to 200+ models through a single API.
-
-```bash
-AI_GATEWAY_API_KEY=[YOUR_AI_GATEWAY_API_KEY]
-```
-
-#### Ollama
-
-[Ollama](https://ollama.com/) enables you to run large language models locally on your own hardware.
-
-```bash
-OLLAMA_BASE_URL=http://localhost:11434
-```
-
-When configured, Ollama models are discovered dynamically and appear in the model selector.
+If legacy direct-provider keys are also present, `OPENROUTER_API_KEY` takes precedence and disables direct OpenAI, Anthropic, Google, Vercel AI Gateway, OpenAI-compatible, and Ollama model selection.
 
 ## Search Providers
 
