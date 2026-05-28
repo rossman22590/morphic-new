@@ -1,17 +1,26 @@
+// Re-export SearchMode for convenience
+export type { SearchMode } from './search'
+
 export type SearchResults = {
   images: SearchResultImage[]
   results: SearchResultItem[]
+  videos?: SerperSearchResultItem[]
   number_of_results?: number
   query: string
+  toolCallId?: string // ID of the search tool call
+  citationMap?: Record<number, SearchResultItem> // Maps citation number to search result
 }
 
-// If enabled the include_images_description is true, the images will be an array of { url: string, description: string }
-// Otherwise, the images will be an array of strings
+// If include_images_description is true, images are objects with url/description.
+// When the provider can resolve the referring page, sourceUrl and title are also set.
+// Otherwise, the images are an array of strings.
 export type SearchResultImage =
   | string
   | {
       url: string
       description: string
+      title?: string
+      sourceUrl?: string
       number_of_results?: number
     }
 
@@ -55,31 +64,10 @@ export type SerperSearchResultItem = {
   position: number
 }
 
-export interface Chat extends Record<string, any> {
-  id: string
+export type SearchImageItem = {
   title: string
-  createdAt: Date
-  userId: string
-  path: string
-  messages: AIMessage[]
-  sharePath?: string
-}
-
-export type AIMessage = {
-  role: 'user' | 'assistant' | 'system' | 'function' | 'data' | 'tool'
-  content: string
-  id: string
-  name?: string
-  type?:
-    | 'answer'
-    | 'related'
-    | 'skip'
-    | 'inquiry'
-    | 'input'
-    | 'input_related'
-    | 'tool'
-    | 'followup'
-    | 'end'
+  link: string
+  thumbnailUrl: string
 }
 
 export interface SearXNGResult {
@@ -104,4 +92,12 @@ export type SearXNGSearchResults = {
   results: SearchResultItem[]
   number_of_results?: number
   query: string
+}
+
+export type UploadedFile = {
+  file: File
+  status: 'uploading' | 'uploaded' | 'error'
+  url?: string
+  name?: string
+  key?: string
 }

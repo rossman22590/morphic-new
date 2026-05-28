@@ -1,33 +1,56 @@
-import { experimental_createProviderRegistry as createProviderRegistry } from 'ai'
-import { openai, createOpenAI } from '@ai-sdk/openai'
 import { anthropic } from '@ai-sdk/anthropic'
+import { createGateway } from '@ai-sdk/gateway'
 import { google } from '@ai-sdk/google'
-import { createAzure } from '@ai-sdk/azure'
-import { createOllama } from 'ollama-ai-provider'
+import { createOpenAI, openai } from '@ai-sdk/openai'
+import { createProviderRegistry, LanguageModel } from 'ai'
+import { createOllama } from 'ai-sdk-ollama'
 
-export const registry = createProviderRegistry({
+// Build providers object conditionally
+const providers: Record<string, any> = {
   openai,
   anthropic,
   google,
-  groq: createOpenAI({
-    apiKey: process.env.GROQ_API_KEY,
-    baseURL: 'https://api.groq.com/openai/v1'
-  }),
-  ollama: createOllama({
-    baseURL: `${process.env.OLLAMA_BASE_URL}/api`
-  }),
-  azure: createAzure({
-    apiKey: process.env.AZURE_API_KEY,
-    resourceName: process.env.AZURE_RESOURCE_NAME
-  }),
   'openai-compatible': createOpenAI({
     apiKey: process.env.OPENAI_COMPATIBLE_API_KEY,
     baseURL: process.env.OPENAI_COMPATIBLE_API_BASE_URL
+  }),
+  gateway: createGateway({
+    apiKey: process.env.AI_GATEWAY_API_KEY
   })
-})
+}
 
-export function getModel(model: string) {
-  return registry.languageModel(model)
+// Only add Ollama if OLLAMA_BASE_URL is configured
+const ollamaProvider = process.env.OLLAMA_BASE_URL
+  ? createOllama({ baseURL: process.env.OLLAMA_BASE_URL })
+  : null
+
+if (ollamaProvider) {
+  providers.ollama = ollamaProvider
+}
+
+export const registry = createProviderRegistry(providers)
+
+export function getModel(model: string): LanguageModel {
+  // For Ollama models, bypass the registry to pass model-level settings
+  // that ai-sdk-ollama requires (think, supportedUrls override).
+  if (model.startsWith('ollama:') && ollamaProvider) {
+    const modelId = model.slice('ollama:'.length)
+    const lm = ollamaProvider(modelId, { think: true })
+
+    // Ollama's Chat API only accepts base64 in the images field, not URLs.
+    // Override supportedUrls to force AI SDK to download images and convert
+    // them to base64 before sending to the model.
+    Object.defineProperty(lm, 'supportedUrls', {
+      value: {},
+      configurable: true
+    })
+
+    return lm
+  }
+
+  return registry.languageModel(
+    model as Parameters<typeof registry.languageModel>[0]
+  )
 }
 
 export function isProviderEnabled(providerId: string): boolean {
@@ -38,18 +61,15 @@ export function isProviderEnabled(providerId: string): boolean {
       return !!process.env.ANTHROPIC_API_KEY
     case 'google':
       return !!process.env.GOOGLE_GENERATIVE_AI_API_KEY
-    case 'groq':
-      return !!process.env.GROQ_API_KEY
-    case 'ollama':
-      return !!process.env.OLLAMA_BASE_URL
-    case 'azure':
-      return !!process.env.AZURE_API_KEY && !!process.env.AZURE_RESOURCE_NAME
     case 'openai-compatible':
       return (
         !!process.env.OPENAI_COMPATIBLE_API_KEY &&
-        !!process.env.OPENAI_COMPATIBLE_API_BASE_URL &&
-        !!process.env.NEXT_PUBLIC_OPENAI_COMPATIBLE_MODEL
+        !!process.env.OPENAI_COMPATIBLE_API_BASE_URL
       )
+    case 'gateway':
+      return !!process.env.AI_GATEWAY_API_KEY
+    case 'ollama':
+      return !!process.env.OLLAMA_BASE_URL
     default:
       return false
   }

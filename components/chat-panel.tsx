@@ -1,47 +1,91 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import type { AI, UIState } from '@/app/actions'
-import { useUIState, useActions, useAIState } from 'ai/rsc'
-import { cn } from '@/lib/utils'
-import { UserMessage } from './user-message'
-import { Button } from './ui/button'
-import { ArrowRight, Plus } from 'lucide-react'
-import { EmptyScreen } from './empty-screen'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Textarea from 'react-textarea-autosize'
-import { generateId } from 'ai'
-import { useAppState } from '@/lib/utils/app-state'
-import { ModelSelector } from './model-selector'
-import { models } from '@/lib/types/models'
-import { useLocalStorage } from '@/lib/hooks/use-local-storage'
-import { getDefaultModelId } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
+
+import { UseChatHelpers } from '@ai-sdk/react'
+import { ArrowUp, ChevronDown, MessageCirclePlus, Square } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { SHORTCUT_EVENTS } from '@/lib/keyboard-shortcuts'
+import { UploadedFile } from '@/lib/types'
+import type { UIDataTypes, UIMessage, UITools } from '@/lib/types/ai'
+import type { ModelSelectorData } from '@/lib/types/model-selector'
+import { cn } from '@/lib/utils'
+
+import { useArtifact } from './artifact/artifact-context'
+import { Button } from './ui/button'
+import { IconBlinkingLogo } from './ui/icons'
+import { ActionButtons } from './action-buttons'
+import { FileUploadButton } from './file-upload-button'
+import { MessageNavigationDots } from './message-navigation-dots'
+import { ModelSelectorClient } from './model-selector-client'
+import { SearchModeSelector } from './search-mode-selector'
+import { UploadedFileList } from './uploaded-file-list'
+
+// Constants for timing delays
+const INPUT_UPDATE_DELAY_MS = 10 // Delay to ensure input value is updated before form submission
+
 interface ChatPanelProps {
-  messages: UIState
+  chatId: string
+  input: string
+  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
+  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void
+  status: UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>['status']
+  messages: UIMessage[]
+  setMessages: (messages: UIMessage[]) => void
   query?: string
-  onModelChange?: (id: string) => void
+  stop: () => void
+  append: (message: any) => void
+  /** Whether to show the scroll to bottom button */
+  showScrollToBottomButton: boolean
+  /** Reference to the scroll container */
+  scrollContainerRef: React.RefObject<HTMLDivElement>
+  uploadedFiles: UploadedFile[]
+  setUploadedFiles: React.Dispatch<React.SetStateAction<UploadedFile[]>>
+  /** Callback to reset chatId when starting a new chat */
+  onNewChat?: () => void
+  /** Whether the current session is guest */
+  isGuest?: boolean
+  /** Whether the deployment is cloud mode */
+  isCloudDeployment?: boolean
+  modelSelectorData?: ModelSelectorData
+  /** Chat sections for message navigation dots */
+  sections?: { id: string; userMessage: UIMessage }[]
 }
 
-export function ChatPanel({ messages, query, onModelChange }: ChatPanelProps) {
-  const [input, setInput] = useState('')
-  const [showEmptyScreen, setShowEmptyScreen] = useState(false)
-  const [, setMessages] = useUIState<typeof AI>()
-  const [aiMessage, setAIMessage] = useAIState<typeof AI>()
-  const { isGenerating, setIsGenerating } = useAppState()
-  const { submit } = useActions()
+export function ChatPanel({
+  chatId,
+  input,
+  handleInputChange,
+  handleSubmit,
+  status,
+  messages,
+  setMessages,
+  query,
+  stop,
+  append,
+  showScrollToBottomButton,
+  uploadedFiles,
+  setUploadedFiles,
+  scrollContainerRef,
+  onNewChat,
+  isGuest = false,
+  isCloudDeployment = false,
+  modelSelectorData,
+  sections = []
+}: ChatPanelProps) {
   const router = useRouter()
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const isFirstRender = useRef(true) // For development environment
-
-  const [selectedModelId, setSelectedModelId] = useLocalStorage<string>(
-    'selectedModel',
-    getDefaultModelId(models)
-  )
-
+  const isFirstRender = useRef(true)
   const [isComposing, setIsComposing] = useState(false) // Composition state
   const [enterDisabled, setEnterDisabled] = useState(false) // Disable Enter after composition ends
+  const [isInputFocused, setIsInputFocused] = useState(false) // Track input focus
+  const { close: closeArtifact } = useArtifact()
+  const isLoading = status === 'submitted' || status === 'streaming'
+  const hasAvailableModels =
+    isCloudDeployment || modelSelectorData?.hasAvailableModels !== false
 
   const handleCompositionStart = () => setIsComposing(true)
 
@@ -53,142 +97,183 @@ export function ChatPanel({ messages, query, onModelChange }: ChatPanelProps) {
     }, 300)
   }
 
-  async function handleQuerySubmit(query: string, formData?: FormData) {
-    setInput(query)
-    setIsGenerating(true)
+  const handleNewChat = useCallback(() => {
+    setMessages([])
+    closeArtifact()
+    // Reset focus state when clearing chat
+    setIsInputFocused(false)
+    inputRef.current?.blur()
+    // Reset chatId in parent component
+    onNewChat?.()
+    router.push('/')
+  }, [setMessages, closeArtifact, onNewChat, router])
 
-    // Add user message to UI state
-    setMessages(currentMessages => [
-      ...currentMessages,
-      {
-        id: generateId(),
-        component: <UserMessage message={query} />
-      }
-    ])
+  // Listen for keyboard shortcut events
+  // Uses defaultPrevented to prevent duplicate handling
+  // when multiple ChatPanel instances are mounted (Next.js component caching)
+  const handleNewChatRef = useRef(handleNewChat)
+  useEffect(() => {
+    handleNewChatRef.current = handleNewChat
+  }, [handleNewChat])
 
-    // Use existing formData or create new one
-    const data = formData || new FormData()
-
-    // Add or update the model information
-    const modelString = selectedModelId
-    data.set('model', modelString)
-
-    // Add or update the input query if not already present
-    if (!formData) {
-      data.set('input', query)
+  useEffect(() => {
+    const handleNewChatShortcut = (e: Event) => {
+      if (e.defaultPrevented) return
+      e.preventDefault()
+      handleNewChatRef.current()
     }
 
-    const responseMessage = await submit(data)
-    setMessages(currentMessages => [...currentMessages, responseMessage])
-  }
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    try {
-      await handleQuerySubmit(input, formData)
-    } catch (error) {
-      console.error('Error submitting form:', error)
-      toast.error(`${error}`)
-
-      handleClear()
+    window.addEventListener(SHORTCUT_EVENTS.newChat, handleNewChatShortcut)
+    return () => {
+      window.removeEventListener(SHORTCUT_EVENTS.newChat, handleNewChatShortcut)
     }
+  }, [])
+
+  const isToolInvocationInProgress = () => {
+    if (!messages.length) return false
+
+    const lastMessage = messages[messages.length - 1]
+    if (lastMessage.role !== 'assistant' || !lastMessage.parts) return false
+
+    const parts = lastMessage.parts
+    const lastPart = parts[parts.length - 1]
+
+    return (
+      (lastPart?.type === 'tool-search' ||
+        lastPart?.type === 'tool-fetch' ||
+        lastPart?.type === 'tool-askQuestion') &&
+      ((lastPart as any)?.state === 'input-streaming' ||
+        (lastPart as any)?.state === 'input-available')
+    )
   }
 
   // if query is not empty, submit the query
   useEffect(() => {
     if (isFirstRender.current && query && query.trim().length > 0) {
-      handleQuerySubmit(query)
+      append({
+        role: 'user',
+        content: query
+      })
       isFirstRender.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
-  useEffect(() => {
-    const lastMessage = aiMessage.messages.slice(-1)[0]
-    if (lastMessage?.type === 'followup' || lastMessage?.type === 'inquiry') {
-      setIsGenerating(false)
+  const handleFileRemove = useCallback(
+    (index: number) => {
+      setUploadedFiles(prev => prev.filter((_, i) => i !== index))
+    },
+    [setUploadedFiles]
+  )
+  // Scroll to the bottom of the container
+  const handleScrollToBottom = () => {
+    const scrollContainer = scrollContainerRef.current
+    if (scrollContainer) {
+      scrollContainer.scrollTo({
+        top: scrollContainer.scrollHeight,
+        behavior: 'smooth'
+      })
     }
-  }, [aiMessage, setIsGenerating])
-
-  // Clear messages
-  const handleClear = () => {
-    setIsGenerating(false)
-    setMessages([])
-    setAIMessage({ messages: [], chatId: '' })
-    setInput('')
-    router.push('/')
-  }
-
-  useEffect(() => {
-    // focus on input when the page loads
-    inputRef.current?.focus()
-  }, [])
-
-  // If there are messages and the new button has not been pressed, display the new Button
-  if (messages.length > 0) {
-    return (
-      <div className="fixed bottom-2 md:bottom-8 left-0 right-0 flex justify-center items-center mx-auto pointer-events-none">
-        <Button
-          type="button"
-          variant={'secondary'}
-          className="rounded-full bg-secondary/80 group transition-all hover:scale-105 pointer-events-auto"
-          onClick={() => handleClear()}
-          disabled={isGenerating}
-        >
-          <span className="text-sm mr-2 group-hover:block hidden animate-in fade-in duration-300">
-            New
-          </span>
-          <Plus size={18} className="group-hover:rotate-90 transition-all" />
-        </Button>
-      </div>
-    )
-  }
-
-  if (query && query.trim().length > 0) {
-    return null
   }
 
   return (
     <div
-      className={
-        'fixed bottom-8 left-0 right-0 top-10 mx-auto h-screen flex flex-col items-center justify-center'
-      }
+      className={cn(
+        'w-full bg-background group/form-container shrink-0',
+        messages.length > 0 ? 'sticky bottom-0 px-2 pb-2 md:pb-4' : 'px-6'
+      )}
     >
-      <form onSubmit={handleSubmit} className="max-w-2xl w-full px-6">
-        <div className="relative flex items-center w-full">
-          <ModelSelector
-            selectedModelId={selectedModelId}
-            onModelChange={id => {
-              setSelectedModelId(id)
-              onModelChange?.(id)
-            }}
-          />
+      {messages.length === 0 && (
+        <div className="mb-6 md:mb-10 flex flex-col items-center gap-2 md:gap-4">
+          <IconBlinkingLogo className="size-12" />
+          <h1 className="text-xl md:text-2xl font-medium text-foreground">
+            What would you like to know?
+          </h1>
+        </div>
+      )}
+      {uploadedFiles.length > 0 && (
+        <UploadedFileList files={uploadedFiles} onRemove={handleFileRemove} />
+      )}
+      <form
+        onSubmit={e => {
+          if (!hasAvailableModels) {
+            e.preventDefault()
+            toast.error('No enabled model is available')
+            return
+          }
+          handleSubmit(e)
+          // Reset focus state after submission
+          setIsInputFocused(false)
+          inputRef.current?.blur()
+        }}
+        className={cn('max-w-full md:max-w-3xl w-full mx-auto relative')}
+      >
+        {/* Scroll to bottom button */}
+        {messages.length > 0 && (
+          <div
+            className={cn(
+              'transition-opacity duration-100',
+              showScrollToBottomButton
+                ? 'opacity-100'
+                : 'pointer-events-none opacity-0'
+            )}
+          >
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="absolute -top-10 right-0 z-20 size-8 rounded-full shadow-md"
+              onClick={handleScrollToBottom}
+              title="Scroll to bottom"
+            >
+              <ChevronDown size={16} />
+            </Button>
+          </div>
+        )}
+        {/* Message navigation dots */}
+        {sections.length > 0 && (
+          <div
+            className={cn(
+              'transition-opacity duration-100',
+              !showScrollToBottomButton && status === 'ready'
+                ? 'opacity-100'
+                : 'pointer-events-none opacity-0'
+            )}
+          >
+            <MessageNavigationDots sections={sections} />
+          </div>
+        )}
+
+        <div
+          className={cn(
+            'relative flex flex-col w-full gap-2 bg-muted rounded-3xl border border-input transition-shadow',
+            isInputFocused &&
+              'ring-1 ring-ring/20 ring-offset-1 ring-offset-background/50'
+          )}
+        >
           <Textarea
             ref={inputRef}
             name="input"
-            rows={1}
+            rows={2}
             maxRows={5}
             tabIndex={0}
             onCompositionStart={handleCompositionStart}
             onCompositionEnd={handleCompositionEnd}
-            placeholder="Ask a question..."
+            onFocus={() => setIsInputFocused(true)}
+            onBlur={() => setIsInputFocused(false)}
+            placeholder={messages.length > 0 ? 'Reply...' : 'Ask anything...'}
             spellCheck={false}
             value={input}
-            className="resize-none w-full min-h-12 rounded-fill bg-muted border border-input pl-4 pr-10 pt-3 pb-1 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            onChange={e => {
-              setInput(e.target.value)
-              setShowEmptyScreen(e.target.value.length === 0)
-            }}
+            disabled={isLoading || isToolInvocationInProgress()}
+            className="resize-none w-full min-h-12 bg-transparent border-0 p-3 md:p-4 text-sm placeholder:text-muted-foreground focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+            onChange={handleInputChange}
             onKeyDown={e => {
-              // Enter should submit the form, but disable it right after IME input confirmation
               if (
                 e.key === 'Enter' &&
                 !e.shiftKey &&
-                !isComposing && // Not in composition
-                !enterDisabled // Not within the delay after confirmation
+                !isComposing &&
+                !enterDisabled
               ) {
-                // Prevent the default action to avoid adding a new line
                 if (input.trim().length === 0) {
                   e.preventDefault()
                   return
@@ -196,44 +281,139 @@ export function ChatPanel({ messages, query, onModelChange }: ChatPanelProps) {
                 e.preventDefault()
                 const textarea = e.target as HTMLTextAreaElement
                 textarea.form?.requestSubmit()
+                // Reset focus state after Enter key submission
+                setIsInputFocused(false)
+                textarea.blur()
               }
             }}
-            onHeightChange={height => {
-              // Ensure inputRef.current is defined
-              if (!inputRef.current) return
-
-              // The initial height and left padding is 70px and 2rem
-              const initialHeight = 70
-              // The initial border radius is 32px
-              const initialBorder = 32
-              // The height is incremented by multiples of 20px
-              const multiple = (height - initialHeight) / 20
-
-              // Decrease the border radius by 4px for each 20px height increase
-              const newBorder = initialBorder - 4 * multiple
-              // The lowest border radius will be 8px
-              inputRef.current.style.borderRadius =
-                Math.max(8, newBorder) + 'px'
-            }}
-            onFocus={() => setShowEmptyScreen(true)}
-            onBlur={() => setShowEmptyScreen(false)}
           />
-          <Button
-            type="submit"
-            size={'icon'}
-            variant={'ghost'}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2"
-            disabled={input.length === 0}
-          >
-            <ArrowRight size={20} />
-          </Button>
+
+          {/* Bottom menu area */}
+          <div className="flex items-center justify-between p-2 md:p-3">
+            <div className="flex items-center gap-2">
+              {!isGuest && (
+                <FileUploadButton
+                  onFileSelect={async files => {
+                    const newFiles: UploadedFile[] = files.map(file => ({
+                      file,
+                      status: 'uploading'
+                    }))
+                    setUploadedFiles(prev => [...prev, ...newFiles])
+                    await Promise.all(
+                      newFiles.map(async uf => {
+                        const formData = new FormData()
+                        formData.append('file', uf.file)
+                        formData.append('chatId', chatId)
+                        try {
+                          const res = await fetch('/api/upload', {
+                            method: 'POST',
+                            body: formData
+                          })
+
+                          if (!res.ok) {
+                            throw new Error('Upload failed')
+                          }
+
+                          const { file: uploaded } = await res.json()
+                          setUploadedFiles(prev =>
+                            prev.map(f =>
+                              f.file === uf.file
+                                ? {
+                                    ...f,
+                                    status: 'uploaded',
+                                    url: uploaded.url,
+                                    name: uploaded.filename,
+                                    key: uploaded.key
+                                  }
+                                : f
+                            )
+                          )
+                        } catch (e) {
+                          toast.error(`Failed to upload ${uf.file.name}`)
+                          setUploadedFiles(prev =>
+                            prev.map(f =>
+                              f.file === uf.file ? { ...f, status: 'error' } : f
+                            )
+                          )
+                        }
+                      })
+                    )
+                  }}
+                />
+              )}
+              <SearchModeSelector />
+            </div>
+            <div className="flex items-center gap-2">
+              {!isCloudDeployment && modelSelectorData && (
+                <ModelSelectorClient data={modelSelectorData} />
+              )}
+              {messages.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleNewChat}
+                  className="shrink-0 size-8 md:size-10 rounded-full group"
+                  type="button"
+                  disabled={isLoading}
+                >
+                  <MessageCirclePlus className="size-4 group-hover:rotate-12 transition-all" />
+                </Button>
+              )}
+              <Button
+                type={isLoading ? 'button' : 'submit'}
+                size={'icon'}
+                className={cn(
+                  isLoading && 'animate-pulse',
+                  'size-8 md:size-10 rounded-full'
+                )}
+                disabled={
+                  (input.length === 0 && !isLoading) || !hasAvailableModels
+                }
+                onClick={isLoading ? stop : undefined}
+                title={
+                  hasAvailableModels
+                    ? undefined
+                    : 'No enabled model is available'
+                }
+              >
+                {isLoading ? (
+                  <Square className="size-4 md:size-5" />
+                ) : (
+                  <ArrowUp className="size-4 md:size-5" />
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
-        <EmptyScreen
-          submitMessage={message => {
-            setInput(message)
-          }}
-          className={cn(showEmptyScreen ? 'visible' : 'invisible')}
-        />
+
+        {/* Action buttons for prompt suggestions */}
+        {messages.length === 0 && (
+          <ActionButtons
+            onSelectPrompt={message => {
+              // Set the input value and submit
+              handleInputChange({
+                target: { value: message }
+              } as React.ChangeEvent<HTMLTextAreaElement>)
+              // Submit the form after a small delay to ensure the input is updated
+              setTimeout(() => {
+                inputRef.current?.form?.requestSubmit()
+                // Reset focus state after action button submission
+                setIsInputFocused(false)
+                inputRef.current?.blur()
+              }, INPUT_UPDATE_DELAY_MS)
+            }}
+            onCategoryClick={category => {
+              // Set the category in the input
+              handleInputChange({
+                target: { value: category }
+              } as React.ChangeEvent<HTMLTextAreaElement>)
+              // Focus the input
+              inputRef.current?.focus()
+            }}
+            inputRef={inputRef}
+            className="mt-2"
+          />
+        )}
       </form>
     </div>
   )

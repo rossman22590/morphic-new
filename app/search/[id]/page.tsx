@@ -1,43 +1,59 @@
 import { notFound, redirect } from 'next/navigation'
+
+import { UIMessage } from 'ai'
+
+import { loadChat } from '@/lib/actions/chat'
+import { getCurrentUserId } from '@/lib/auth/get-current-user'
+import { getModelSelectorData } from '@/lib/model-selector/get-model-selector-data'
+
 import { Chat } from '@/components/chat'
-import { getChat } from '@/lib/actions/chat'
-import { AI } from '@/app/actions'
 
 export const maxDuration = 60
 
-export interface SearchPageProps {
-  params: {
-    id: string
-  }
-}
+export async function generateMetadata(props: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await props.params
+  const userId = await getCurrentUserId()
 
-export async function generateMetadata({ params }: SearchPageProps) {
-  const chat = await getChat(params.id, 'anonymous')
-  return {
-    title: chat?.title.toString().slice(0, 50) || 'Search'
-  }
-}
-
-export default async function SearchPage({ params }: SearchPageProps) {
-  const userId = 'anonymous'
-  const chat = await getChat(params.id, userId)
+  const chat = await loadChat(id, userId)
 
   if (!chat) {
-    redirect('/')
+    return { title: 'Search' }
   }
 
-  if (chat?.userId !== userId) {
+  return {
+    title: chat.title.toString().slice(0, 50) || 'Search'
+  }
+}
+
+export default async function SearchPage(props: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await props.params
+  const userId = await getCurrentUserId()
+
+  const chat = await loadChat(id, userId)
+
+  if (!chat) {
     notFound()
   }
 
+  if (chat.visibility === 'private' && !userId) {
+    redirect('/auth/login')
+  }
+
+  const messages: UIMessage[] = chat.messages
+  const isCloudDeployment = process.env.MORPHIC_CLOUD_DEPLOYMENT === 'true'
+  const modelSelectorData = await getModelSelectorData()
+
   return (
-    <AI
-      initialAIState={{
-        chatId: chat.id,
-        messages: chat.messages
-      }}
-    >
-      <Chat id={params.id} />
-    </AI>
+    <Chat
+      id={id}
+      savedMessages={messages}
+      isGuest={!userId}
+      isCloudDeployment={isCloudDeployment}
+      modelSelectorData={modelSelectorData}
+    />
   )
 }

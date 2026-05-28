@@ -1,30 +1,20 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { CoreMessage } from 'ai'
+
 import { type Model } from '@/lib/types/models'
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+
+// Function to generate a UUID
+export function generateUUID(): string {
+  // Generate UUIDv4
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0,
+      v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
 }
 
-/**
- * Takes an array of AIMessage and modifies each message where the role is 'tool'.
- * Changes the role to 'assistant' and converts the content to a JSON string.
- * Returns the modified messages as an array of CoreMessage.
- *
- * @param aiMessages - Array of AIMessage
- * @returns modifiedMessages - Array of modified messages
- */
-export function transformToolMessages(messages: CoreMessage[]): CoreMessage[] {
-  return messages.map(message =>
-    message.role === 'tool'
-      ? {
-          ...message,
-          role: 'assistant',
-          content: JSON.stringify(message.content),
-          type: 'tool'
-        }
-      : message
-  ) as CoreMessage[]
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
 }
 
 /**

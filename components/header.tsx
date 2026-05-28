@@ -1,23 +1,61 @@
-import React from 'react'
-import { ModeToggle } from './mode-toggle'
-import { IconLogo } from './ui/icons'
-import { cn } from '@/lib/utils'
-import HistoryContainer from './history-container'
+'use client'
 
-export const Header: React.FC = async () => {
+// import Link from 'next/link' // No longer needed directly here for Sign In button
+import React, { useState } from 'react'
+import { usePathname } from 'next/navigation'
+
+import { User } from '@supabase/supabase-js'
+
+import { cn } from '@/lib/utils'
+
+import { useSidebar } from '@/components/ui/sidebar'
+
+import { Button } from './ui/button'
+import { FeedbackModal } from './feedback-modal'
+// import { Button } from './ui/button' // No longer needed directly here for Sign In button
+import GuestMenu from './guest-menu' // Import the new GuestMenu component
+import UserMenu from './user-menu'
+
+interface HeaderProps {
+  user: User | null
+}
+
+export const Header: React.FC<HeaderProps> = ({ user }) => {
+  const { open } = useSidebar()
+  const pathname = usePathname()
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const isRootPage = pathname === '/'
+
   return (
-    <header className="fixed w-full p-1 md:p-2 flex justify-between items-center z-10 backdrop-blur md:backdrop-blur-none bg-background/80 md:bg-transparent">
-      <div>
-        <a href="/">
-          <IconLogo className={cn('w-5 h-5')} />
-          <span className="sr-only">Morphic</span>
-        </a>
-      </div>
-      <div className="flex gap-0.5">
-        <ModeToggle />
-        <HistoryContainer location="header" />
-      </div>
-    </header>
+    <>
+      <header
+        className={cn(
+          'absolute top-0 right-0 p-2 md:p-3 flex justify-between items-center z-10 backdrop-blur-sm lg:backdrop-blur-none bg-background/80 lg:bg-transparent transition-[width] duration-200 ease-linear',
+          open ? 'md:w-[calc(100%-var(--sidebar-width))]' : 'md:w-full',
+          'w-full'
+        )}
+      >
+        {/* This div can be used for a logo or title on the left if needed */}
+        <div></div>
+
+        <div className="flex items-center gap-2">
+          {isRootPage && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFeedbackOpen(true)}
+            >
+              Feedback
+            </Button>
+          )}
+          {user ? <UserMenu user={user} /> : <GuestMenu />}
+        </div>
+      </header>
+
+      {isRootPage && (
+        <FeedbackModal open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      )}
+    </>
   )
 }
 

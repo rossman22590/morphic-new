@@ -1,14 +1,18 @@
+import { getCurrentUserId } from '@/lib/auth/get-current-user'
+import { getModelSelectorData } from '@/lib/model-selector/get-model-selector-data'
+
 import { Chat } from '@/components/chat'
-import { generateId } from 'ai'
-import { AI } from './actions'
 
-export const maxDuration = 60
+export default async function Page() {
+  const userId = await getCurrentUserId()
+  const isCloudDeployment = process.env.MORPHIC_CLOUD_DEPLOYMENT === 'true'
+  const modelSelectorData = await getModelSelectorData()
 
-export default function Page() {
-  const id = generateId()
   return (
-    <AI initialAIState={{ chatId: id, messages: [] }}>
-      <Chat id={id} />
-    </AI>
+    <Chat
+      isGuest={!userId}
+      isCloudDeployment={isCloudDeployment}
+      modelSelectorData={modelSelectorData}
+    />
   )
 }

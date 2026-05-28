@@ -1,20 +1,24 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Button } from './ui/button'
+
 import { Share } from 'lucide-react'
+import { toast } from 'sonner'
+
+import { shareChat } from '@/lib/actions/chat'
+import { useCopyToClipboard } from '@/lib/hooks/use-copy-to-clipboard'
+import { cn } from '@/lib/utils'
+
+import { Button } from './ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTrigger,
-  DialogDescription,
-  DialogTitle
+  DialogTitle,
+  DialogTrigger
 } from './ui/dialog'
-import { shareChat } from '@/lib/actions/chat'
-import { toast } from 'sonner'
-import { useCopyToClipboard } from '@/lib/hooks/use-copy-to-clipboard'
 import { Spinner } from './ui/spinner'
 
 interface ChatShareProps {
@@ -32,18 +36,19 @@ export function ChatShare({ chatId, className }: ChatShareProps) {
     startTransition(() => {
       setOpen(true)
     })
-    const result = await shareChat(chatId)
-    if (!result) {
-      toast.error('Failed to share chat')
+
+    const sharedChatObject = await shareChat(chatId)
+    if (!sharedChatObject) {
+      toast.error(
+        'Failed to make chat public. You may need to be logged in or own the chat.'
+      )
       return
     }
 
-    if (!result.sharePath) {
-      toast.error('Could not copy link to clipboard')
-      return
-    }
-
-    const url = new URL(result.sharePath, window.location.href)
+    const url = new URL(
+      `/search/${sharedChatObject.id}`,
+      window.location.origin
+    )
     setShareUrl(url.toString())
   }
 
@@ -67,7 +72,7 @@ export function ChatShare({ chatId, className }: ChatShareProps) {
       >
         <DialogTrigger asChild>
           <Button
-            className="rounded-full"
+            className={cn('rounded-full')}
             size="icon"
             variant={'ghost'}
             onClick={() => setOpen(true)}
@@ -77,9 +82,10 @@ export function ChatShare({ chatId, className }: ChatShareProps) {
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Share link to search result</DialogTitle>
+            <DialogTitle>Share Chat</DialogTitle>
             <DialogDescription>
-              Anyone with the link will be able to view this search result.
+              Anyone with the link will be able to view this chat if it&apos;s
+              public.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="items-center">

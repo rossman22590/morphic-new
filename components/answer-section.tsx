@@ -1,37 +1,86 @@
 'use client'
 
-import { Section } from './section'
-import { StreamableValue, useStreamableValue } from 'ai/rsc'
-import { BotMessage } from './message'
-import { useEffect, useState } from 'react'
-import { DefaultSkeleton } from './default-skeleton'
+import { UseChatHelpers } from '@ai-sdk/react'
+import { ChatRequestOptions } from 'ai'
+
+import type { SearchResultItem } from '@/lib/types'
+import type {
+  UIDataTypes,
+  UIMessage,
+  UIMessageMetadata,
+  UITools
+} from '@/lib/types/ai'
+
+import { CollapsibleMessage } from './collapsible-message'
+import { MarkdownMessage } from './message'
+import { MessageActions } from './message-actions'
 
 export type AnswerSectionProps = {
-  result?: StreamableValue<string>
-  hasHeader?: boolean
+  content: string
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+  chatId?: string
+  showActions?: boolean
+  messageId: string
+  metadata?: UIMessageMetadata
+  status?: UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>['status']
+  reload?: (
+    messageId: string,
+    options?: ChatRequestOptions
+  ) => Promise<void | string | null | undefined>
+  citationMaps?: Record<string, Record<number, SearchResultItem>>
+  isGuest?: boolean
 }
 
 export function AnswerSection({
-  result,
-  hasHeader = true
+  content,
+  isOpen,
+  onOpenChange,
+  chatId,
+  showActions = true, // Default to true for backward compatibility
+  messageId,
+  metadata,
+  status,
+  reload,
+  citationMaps,
+  isGuest = false
 }: AnswerSectionProps) {
-  const [data, error, pending] = useStreamableValue(result)
-  const [content, setContent] = useState<string>('')
+  const enableShare =
+    process.env.NEXT_PUBLIC_SUPABASE_URL !== undefined && !isGuest
 
-  useEffect(() => {
-    if (!data) return
-    setContent(data)
-  }, [data])
+  const handleReload = () => {
+    if (reload) {
+      return reload(messageId)
+    }
+    return Promise.resolve(undefined)
+  }
 
   return (
-    <div>
-      {content.length > 0 ? (
-        <Section title={hasHeader ? 'Answer' : undefined}>
-          <BotMessage content={content} />
-        </Section>
-      ) : (
-        <DefaultSkeleton />
+    <CollapsibleMessage
+      role="assistant"
+      isCollapsible={false}
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+      showBorder={false}
+      showIcon={false}
+    >
+      {content && (
+        <div className="flex flex-col gap-1">
+          <MarkdownMessage message={content} citationMaps={citationMaps} />
+          <MessageActions
+            message={content} // Provide original message; copy path remaps citations
+            messageId={messageId}
+            traceId={metadata?.traceId}
+            feedbackScore={metadata?.feedbackScore}
+            chatId={chatId}
+            enableShare={enableShare}
+            reload={handleReload}
+            status={status}
+            visible={showActions}
+            citationMaps={citationMaps}
+          />
+        </div>
       )}
-    </div>
+    </CollapsibleMessage>
   )
 }
