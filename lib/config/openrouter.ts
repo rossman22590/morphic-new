@@ -5,6 +5,7 @@ export const TOP_OPENROUTER_MODEL_IDS = [
   'openai/gpt-chat-latest',
   'x-ai/grok-4.3',
   'openai/gpt-5.5',
+  'openai/gpt-5.4-mini',
   'anthropic/claude-haiku-4.5',
   'deepseek/deepseek-v4-flash',
   'minimax/minimax-m2.7',

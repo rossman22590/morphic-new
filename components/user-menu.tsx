@@ -1,9 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { User } from '@supabase/supabase-js'
-import { Link2, LogOut, Palette } from 'lucide-react'
+import { LogOut, Palette, UserCog } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/client'
 
@@ -21,7 +22,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 import { Button } from './ui/button'
-import { ExternalLinkItems } from './external-link-items'
 import { ThemeMenuItems } from './theme-menu-items'
 
 interface UserMenuProps {
@@ -78,6 +78,16 @@ export default function UserMenu({ user }: UserMenuProps) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link
+            href="https://account.myapps.ai/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <UserCog className="mr-2 h-4 w-4" />
+            <span>Manage Account</span>
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <Palette className="mr-2 h-4 w-4" />
@@ -85,15 +95,6 @@ export default function UserMenu({ user }: UserMenuProps) {
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <ThemeMenuItems />
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Link2 className="mr-2 h-4 w-4" />
-            <span>Links</span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <ExternalLinkItems />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSeparator />

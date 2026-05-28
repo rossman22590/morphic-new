@@ -3,10 +3,10 @@
 import Link from 'next/link'
 
 import {
-  Link2,
   LogIn,
   Palette,
-  Settings2 // Or EllipsisVertical, etc.
+  Settings2, // Or EllipsisVertical, etc.
+  UserCog
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,6 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 
-import { ExternalLinkItems } from './external-link-items'
 import { ThemeMenuItems } from './theme-menu-items'
 
 interface GuestMenuProps {
@@ -49,6 +48,17 @@ export default function GuestMenu({ showAuthActions = true }: GuestMenuProps) {
             <DropdownMenuSeparator />
           </>
         )}
+        <DropdownMenuItem asChild>
+          <Link
+            href="https://account.myapps.ai/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <UserCog className="mr-2 h-4 w-4" />
+            <span>Manage Account</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <Palette className="mr-2 h-4 w-4" />
@@ -56,15 +66,6 @@ export default function GuestMenu({ showAuthActions = true }: GuestMenuProps) {
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <ThemeMenuItems />
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Link2 className="mr-2 h-4 w-4" />
-            <span>Links</span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <ExternalLinkItems />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuContent>

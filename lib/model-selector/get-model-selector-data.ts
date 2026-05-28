@@ -33,6 +33,17 @@ function pickFirstAvailableModel(
   return null
 }
 
+function findAvailableModel(
+  modelsByProvider: Record<string, Model[]>,
+  target: Model
+): Model | null {
+  return (
+    modelsByProvider[target.provider]?.find(
+      model => model.providerId === target.providerId && model.id === target.id
+    ) ?? null
+  )
+}
+
 function resolveSelectedModelKey(
   modelsByProvider: Record<string, Model[]>,
   fallbackModel: Model | null,
@@ -69,7 +80,9 @@ export async function getModelSelectorData(): Promise<ModelSelectorData> {
   }
 
   const modelsByProvider = await fetchAvailableModels()
-  const fallbackModel = pickFirstAvailableModel(modelsByProvider)
+  const fallbackModel =
+    findAvailableModel(modelsByProvider, DEFAULT_MODEL) ??
+    pickFirstAvailableModel(modelsByProvider)
   const hasAvailableModels =
     fallbackModel !== null || isProviderEnabled(DEFAULT_MODEL.providerId)
   const cookieStore = await cookies()
